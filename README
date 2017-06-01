@@ -1,7 +1,7 @@
 MySQL源码注释
 Percona Server 5.6
 ------------------
-
+ha_innobase文件是Innodb储存引擎接口。
 ha_innobase::index_read()函数是通过index读取一行记录的统一入口。
 
 
