@@ -1,6 +1,18 @@
+MySQL源码注释
 Percona Server 5.6
 ------------------
 
+ha_innobase::index_read()函数是通过index读取一行记录的统一入口。
+
+
+
+
+
+
+
+
+
+------------------
 Percona Server is a branch of MySQL 5.6 bringing higher performance,
 reliability and more features.
 
