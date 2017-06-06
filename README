@@ -10,7 +10,8 @@ ha_innobase文件是Innodb储存引擎接口。
 
 
 
-
+MySQL层面
+sql_update.cc文件 mysql_update() 普通UPDATE入口
 
 
 
