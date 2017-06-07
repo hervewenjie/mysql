@@ -1,6 +1,21 @@
+MySQL源码注释
 Percona Server 5.6
 ------------------
+ha_innobase文件是Innodb储存引擎接口。
+增删改查
+查 ha_innobase::index_read()函数是通过index读取一行记录的统一入口。
+改 ha_innobase::update_row() -> row0mysql.cc::row_update_for_mysql()
 
+
+
+
+
+MySQL层面
+sql_update.cc文件 mysql_update() 普通UPDATE入口
+
+
+
+------------------
 Percona Server is a branch of MySQL 5.6 bringing higher performance,
 reliability and more features.
 
