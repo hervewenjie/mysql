@@ -214,11 +214,11 @@ static bool check_constant_expressions(List<Item> &values)
 int mysql_update(THD *thd,
                  TABLE_LIST *table_list,
                  List<Item> &fields,
-		 List<Item> &values,
+                 List<Item> &values,
                  Item *conds,
                  uint order_num, ORDER *order,
-		 ha_rows limit,
-		 enum enum_duplicates handle_duplicates, bool ignore,
+                 ha_rows limit,
+                 enum enum_duplicates handle_duplicates, bool ignore,
                  ha_rows *found_return, ha_rows *updated_return)
 {
   bool		using_limit= limit != HA_POS_ERROR;

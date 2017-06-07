@@ -1664,6 +1664,8 @@ init_fts_doc_id_for_ref(
 	}
 }
 
+// -----------------------------------------------
+// 更新和删除???
 /*********************************************************************//**
 Does an update or delete of a row for MySQL.
 @return	error code or DB_SUCCESS */
@@ -1671,25 +1673,25 @@ UNIV_INTERN
 dberr_t
 row_update_for_mysql(
 /*=================*/
-	byte*		mysql_rec,	/*!< in: the row to be updated, in
-					the MySQL format */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
+	byte*		mysql_rec,	 /*!< in: the row to be updated, in the MySQL format */
+	row_prebuilt_t*	prebuilt /*!< in: prebuilt struct in MySQL handle */
+                     )
 {
 	trx_savept_t	savept;
-	dberr_t		err;
-	que_thr_t*	thr;
-	ibool		was_lock_wait;
+	dberr_t         err;
+	que_thr_t*      thr;
+	ibool           was_lock_wait;
 	dict_index_t*	clust_index;
 	/*	ulint		ref_len; */
-	upd_node_t*	node;
+	upd_node_t*     node;
 	dict_table_t*	table		= prebuilt->table;
-	trx_t*		trx		= prebuilt->trx;
-	ulint		fk_depth	= 0;
+	trx_t*          trx		= prebuilt->trx;
+	ulint           fk_depth	= 0;
 
 	ut_ad(prebuilt && trx);
 	UT_NOT_USED(mysql_rec);
 
+    // ibd文件缺失报错
 	if (prebuilt->table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Error:\n"
@@ -1707,6 +1709,7 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
+    // 报错
 	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
@@ -1720,6 +1723,7 @@ row_update_for_mysql(
 		ut_error;
 	}
 
+    // 报错
 	if (UNIV_UNLIKELY(srv_created_new_raw || srv_force_recovery)) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
@@ -1736,12 +1740,14 @@ row_update_for_mysql(
 
 	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
 
+    // 更新或者删除
 	trx->op_info = "updating or deleting";
 
 	row_mysql_delay_if_needed();
 
 	trx_start_if_not_started_xa(trx);
 
+    // 外键foreign key
 	if (dict_table_is_referenced_by_foreign_key(table)) {
 		/* Share lock the data dictionary to prevent any
 		table dictionary (for foreign constraint) change.
@@ -1761,8 +1767,7 @@ row_update_for_mysql(
 	if (prebuilt->pcur.btr_cur.index == clust_index) {
 		btr_pcur_copy_stored_position(node->pcur, &prebuilt->pcur);
 	} else {
-		btr_pcur_copy_stored_position(node->pcur,
-					      &prebuilt->clust_pcur);
+		btr_pcur_copy_stored_position(node->pcur, &prebuilt->clust_pcur);
 	}
 
 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
@@ -1789,6 +1794,8 @@ run_again:
 	thr->prev_node = node;
 	thr->fk_cascade_depth = 0;
 
+    // ----------------------------------------------
+    // 真正处理更新
 	row_upd_step(thr);
 
 	err = trx->error_state;
@@ -1796,6 +1803,7 @@ run_again:
 	/* Reset fk_cascade_depth back to 0 */
 	thr->fk_cascade_depth = 0;
 
+    // 错误处理
 	if (err != DB_SUCCESS) {
 		que_thr_stop_for_mysql(thr);
 
@@ -1826,13 +1834,11 @@ run_again:
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
 	if (UNIV_UNLIKELY(trx->fake_changes)) {
-
 		trx->op_info = "";
 		return(err);
 	}
 
-	if (dict_table_has_fts_index(table)
-	    && trx->fts_next_doc_id != UINT64_UNDEFINED) {
+	if (dict_table_has_fts_index(table) && trx->fts_next_doc_id != UINT64_UNDEFINED) {
 		err = row_fts_update_or_delete(prebuilt);
 		if (err != DB_SUCCESS) {
 			trx->op_info = "";
@@ -1840,6 +1846,7 @@ run_again:
 		}
 	}
 
+    // 删除或更新
 	if (node->is_delete) {
 		/* Not protected by dict_table_stats_lock() for performance
 		reasons, we would rather get garbage in stat_n_rows (which is
@@ -1852,6 +1859,7 @@ run_again:
 		srv_stats.n_rows_updated.add((size_t)trx->id, 1);
 	}
 
+    // 更新统计数据
 	/* We update table statistics only if it is a DELETE or UPDATE
 	that changes indexed columns, UPDATEs that change only non-indexed
 	columns would not affect statistics. */

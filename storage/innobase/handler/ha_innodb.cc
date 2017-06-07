@@ -7131,6 +7131,11 @@ ha_innobase::innobase_set_max_autoinc(
 	return(error);
 }
 
+// handler接口API
+// 精简如下
+// write_row(buf) // 具体调用实现
+// binlog_log_row // 写binlog
+
 /********************************************************************//**
 Stores a row in an InnoDB database, to the table specified in this
 handle.
@@ -7684,6 +7689,10 @@ calc_row_difference(
 	return(DB_SUCCESS);
 }
 
+// ==========================
+// 更新一行数据
+// 在检查到底哪个字段需要被更新的时候
+
 /**********************************************************************//**
 Updates a row given as a parameter to a new value. Note that we are given
 whole rows, not just the fields which are updated: this incurs some
@@ -7697,12 +7706,13 @@ int
 ha_innobase::update_row(
 /*====================*/
 	const uchar*	old_row,	/*!< in: old row in MySQL format */
-	uchar*		new_row)	/*!< in: new row in MySQL format */
+	uchar*		new_row)        /*!< in: new row in MySQL format */
 {
 	upd_t*		uvect;
 	dberr_t		error;
 	trx_t*		trx = thd_to_trx(user_thd);
 
+    printf("更新一行数据\n");
 	DBUG_ENTER("ha_innobase::update_row");
 
 	ut_a(prebuilt->trx == trx);
@@ -7745,7 +7755,8 @@ ha_innobase::update_row(
 
 	/* Build an update vector from the modified fields in the rows
 	(uses upd_buf of the handle) */
-
+    // ---------------------------------------
+    // 计算出一个vector
 	error = calc_row_difference(uvect, (uchar*) old_row, new_row, table,
 				    upd_buf, upd_buf_size, prebuilt, user_thd);
 
@@ -7754,12 +7765,15 @@ ha_innobase::update_row(
 	}
 
 	/* This is not a delete */
+    // 不是删除...
 	prebuilt->upd_node->is_delete = FALSE;
 
 	ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
 
 	innobase_srv_conc_enter_innodb(trx);
-
+    
+    // =================================
+    // 调用 row_update_for_mysql
 	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
 	/* We need to do some special AUTOINC handling for the following case:
@@ -7770,6 +7784,7 @@ ha_innobase::update_row(
 	MySQL in the UPDATE statement, which can be different from the
 	value used in the INSERT statement.*/
 
+    // 做一些 autoinc 的工作
 	if (error == DB_SUCCESS
 	    && table->next_number_field
 	    && new_row == table->record[0]
@@ -8126,9 +8141,6 @@ start of a new SQL statement.
     如果用户设置了显示表级别锁...
  */
 
-
-
-
 /**********************************************************************//**
 Positions an index cursor to the index specified in the handle. Fetches the
 row if any.
@@ -8138,7 +8150,7 @@ int
 ha_innobase::index_read(
 /*====================*/
 	uchar*          buf,        /* 返回的行记录, 一行??? */ /*!< in/out: buffer for the returned row */
-	const uchar*	key_ptr,	/* 16进制的字符串表示index *//*!< in: key value; if this is NULL
+	const uchar*	key_ptr,	/* 16进制的字符串表示index 全表扫描时为NULL *//*!< in: key value; if this is NULL
                                     we position the cursor at the
                                     start or end of index; this can
                                     also contain an InnoDB row id, in

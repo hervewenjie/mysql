@@ -904,6 +904,8 @@ void cleanup_items(Item *item)
 
 #ifndef EMBEDDED_LIBRARY
 
+// ==============================
+// 命令执行入口
 /**
   Read one command from connection and execute it (query or simple command).
   This function is called in loop from thread function.
@@ -1037,6 +1039,7 @@ bool do_command(THD *thd)
   /* Do not rely on my_net_read, extra safety against programming errors. */
   packet[packet_length]= '\0';                  /* safety */
 
+   // 解析客户的传过来的命令类型
   command= (enum enum_server_command) (uchar) packet[0];
 
   if (command >= COM_END)
@@ -1051,6 +1054,7 @@ bool do_command(THD *thd)
 
   DBUG_ASSERT(packet_length);
 
+    // dispatch命令
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
 
 out:
@@ -1208,6 +1212,8 @@ static void reset_statement_timer(THD *thd)
 }
 
 
+// =================================================
+// 执行一个connection级别的command
 /**
   Perform one connection-level (COM_XXXX) command.
 
@@ -1310,6 +1316,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     goto done;
   }
 
+    // ----------------------
+    // switch判断命令类型
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1410,13 +1418,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     mysqld_stmt_reset(thd, packet, packet_length);
     break;
   }
+          // ------------------------------------
+          // 如果是query
   case COM_QUERY:
   {
     DBUG_ASSERT(thd->m_digest == NULL);
     thd->m_digest= & thd->m_digest_state;
     thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
-    if (alloc_query(thd, packet, packet_length))
+    if (alloc_query(thd, packet, packet_length)) // 从网络数据包中读取Query并存入thd->query
       break;					// fatal error is set
     MYSQL_QUERY_START(thd->query(), thd->thread_id,
                       (char *) (thd->db ? thd->db : ""),
@@ -1439,6 +1449,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (parser_state.init(thd, thd->query(), thd->query_length()))
       break;
 
+      // --------------------------
+      // 送去解析
     mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
@@ -6789,6 +6801,8 @@ void mysql_init_multi_delete(LEX *lex)
   mysql_test_parse_for_slave() in this same file.
 */
 
+// ================================================
+// SELECT语句到这里
 /**
   Parse a query.
 
@@ -6823,7 +6837,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     is required for the cache to work properly.
     FIXME: cleanup the dependencies in the code to simplify this.
   */
-  lex_start(thd);
+  lex_start(thd); // 初始化线程解析描述符
   mysql_reset_thd_for_next_command(thd);
 
   int start_time_error=   0;
@@ -6854,11 +6868,13 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     }
   }
 
+    // ----------------------------------
+    // 查看Cache是否有命中, 有就直接返回结果, 否则进行查找
   if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
   {
     LEX *lex= thd->lex;
 
-    bool err= parse_sql(thd, parser_state, NULL);
+    bool err= parse_sql(thd, parser_state, NULL); // 解析SQL语句
 
     const char *found_semicolon= parser_state->m_lip.found_semicolon;
     size_t      qlen= found_semicolon
@@ -6952,6 +6968,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
             error= 1;
           }
           else
+              // ------------------------------
+              // 真正执行语句在这里
             error= mysql_execute_command(thd);
           if (error == 0 &&
               thd->variables.gtid_next.type == GTID_GROUP &&
